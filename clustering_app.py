@@ -1,7 +1,8 @@
 import sys
 import numpy as np
 import pandas as pd
-
+from collections import Counter
+import re
 from sentence_transformers import SentenceTransformer
 from sklearn.preprocessing import StandardScaler, normalize
 from sklearn.cluster import MiniBatchKMeans
@@ -42,19 +43,65 @@ def run(file_path):
 
     labels = model_cluster.fit_predict(X)
 
-    df["Cluster_ID"] = labels
+df["Cluster_ID"] = labels
 
-    output = "clustered_output.xlsx"
+# ===== Cluster Summary =====
 
-    df.to_excel(output, index=False)
+cluster_summary = []
 
-    print("Saved:", output)
+for cluster_id in sorted(df["Cluster_ID"].unique()):
 
+    cluster_df = df[df["Cluster_ID"] == cluster_id]
 
-if __name__ == "__main__":
+    texts = " ".join(
+        cluster_df[text_cols]
+        .fillna("")
+        .astype(str)
+        .agg(" ".join, axis=1)
+        .tolist()
+    )
 
-    if len(sys.argv) < 2:
-        print("Usage: clustering_app.exe input.xlsx")
-        sys.exit(1)
+    words = re.findall(r"[A-Za-zΑ-Ωα-ω]{3,}", texts.upper())
 
-    run(sys.argv[1])
+    stopwords = {
+        "THE","AND","FOR","WITH","SET","PACK","DESIGN",
+        "SMALL","LARGE","OF","TO","IN","ON",
+        "ΚΑΙ","ΤΟ","ΤΗΝ","ΤΗΣ","ΓΙΑ","ΜΕ"
+    }
+
+    words = [w for w in words if w not in stopwords]
+
+    top_words = [w for w, c in Counter(words).most_common(5)]
+
+    cluster_name = " / ".join(top_words[:3])
+
+    business_description = (
+        f"Products related to: {', '.join(top_words)}"
+    )
+
+    cluster_summary.append({
+        "Cluster_ID": cluster_id,
+        "Cluster_Name": cluster_name,
+        "Business_Description": business_description,
+        "Items": len(cluster_df)
+    })
+
+summary_df = pd.DataFrame(cluster_summary)
+
+output = "clustered_output.xlsx"
+
+with pd.ExcelWriter(output, engine="openpyxl") as writer:
+
+    df.to_excel(
+        writer,
+        sheet_name="Clustered_Data",
+        index=False
+    )
+
+    summary_df.to_excel(
+        writer,
+        sheet_name="Cluster_Summary",
+        index=False
+    )
+
+print("Saved:", output)
