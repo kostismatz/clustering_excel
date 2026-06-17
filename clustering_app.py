@@ -6,6 +6,7 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer
 from sklearn.preprocessing import StandardScaler, normalize
 from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans
 
 MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 model = SentenceTransformer(MODEL_NAME)
@@ -35,10 +36,10 @@ def run(file_path):
 
     X = normalize(X)
 
-   model_cluster = KMeans(
+   model_cluster = MiniBatchKMeans(
     n_clusters=10,
-    random_state=42,
-    n_init=10
+    batch_size=512,
+    random_state=42
 )
 
 labels = model_cluster.fit_predict(X)
