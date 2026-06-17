@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from collections import Counter
 import re
+import os
 
 from sentence_transformers import SentenceTransformer
 from sklearn.preprocessing import StandardScaler, normalize
@@ -106,7 +107,8 @@ def run(file_path):
 
     summary_df = pd.DataFrame(cluster_summary)
 
-    output = "clustered_output.xlsx"
+    input_dir = os.path.dirname(file_path)
+    output = os.path.join(input_dir, "clustered_output.xlsx")
 
     with pd.ExcelWriter(
         output,
