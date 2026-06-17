@@ -20,30 +20,64 @@ def run(file_path):
     numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
     text_cols = [c for c in df.columns if c not in numeric_cols]
 
-    numeric_matrix = None
+    print(f"Text columns: {text_cols}")
+    print(f"Numeric columns: {numeric_cols}")
+
+    feature_blocks = []
+
+    # ==========================
+    # Numeric Features
+    # ==========================
 
     if numeric_cols:
-        num_df = df[numeric_cols].fillna(df[numeric_cols].median())
+
+        num_df = df[numeric_cols].copy()
+
+        num_df = num_df.fillna(num_df.median())
+
         scaler = StandardScaler()
+
         numeric_matrix = scaler.fit_transform(num_df)
 
-    # Text embeddings
-    text_data = df[text_cols].fillna("").astype(str).agg(" ".join, axis=1)
-    embeddings = model.encode(
-        text_data.tolist(),
-        batch_size=64,
-        show_progress_bar=True
-    )
+        feature_blocks.append(numeric_matrix)
 
-    # Merge numeric + embeddings
-    if numeric_matrix is not None:
-        X = np.hstack([numeric_matrix, embeddings])
-    else:
-        X = embeddings
+    # ==========================
+    # Text Embeddings
+    # ==========================
+
+    for col in text_cols:
+
+        print(f"Embedding column: {col}")
+
+        texts = (
+            df[col]
+            .fillna("")
+            .astype(str)
+            .tolist()
+        )
+
+        emb = model.encode(
+            texts,
+            batch_size=64,
+            show_progress_bar=True
+        )
+
+        feature_blocks.append(emb)
+
+    # ==========================
+    # Merge Features
+    # ==========================
+
+    X = np.hstack(feature_blocks)
 
     X = normalize(X)
 
+    print("Feature matrix shape:", X.shape)
+
+    # ==========================
     # Clustering
+    # ==========================
+
     model_cluster = MiniBatchKMeans(
         n_clusters=20,
         batch_size=512,
@@ -65,11 +99,13 @@ def run(file_path):
         cluster_df = df[df["Cluster_ID"] == cluster_id]
 
         texts = " ".join(
+
             cluster_df[text_cols]
             .fillna("")
             .astype(str)
             .agg(" ".join, axis=1)
             .tolist()
+
         )
 
         words = re.findall(
@@ -78,18 +114,26 @@ def run(file_path):
         )
 
         stopwords = {
-            "THE", "AND", "FOR", "WITH",
-            "SET", "PACK", "DESIGN",
-            "SMALL", "LARGE",
-            "OF", "TO", "IN", "ON",
-            "ΚΑΙ", "ΤΟ", "ΤΗΝ",
-            "ΤΗΣ", "ΓΙΑ", "ΜΕ"
+
+            "THE","AND","FOR","WITH",
+            "SET","PACK","DESIGN",
+            "SMALL","LARGE",
+            "OF","TO","IN","ON",
+
+            "ΚΑΙ","ΤΟ","ΤΗΝ",
+            "ΤΗΣ","ΓΙΑ","ΜΕ",
+            "ΑΠΟ","ΣΤΟ","ΣΤΗ"
+
         }
 
-        words = [w for w in words if w not in stopwords]
+        words = [
+            w for w in words
+            if w not in stopwords
+        ]
 
         top_words = [
-            w for w, c in Counter(words).most_common(5)
+            w for w, c
+            in Counter(words).most_common(5)
         ]
 
         cluster_name = " / ".join(top_words[:3])
@@ -99,16 +143,21 @@ def run(file_path):
         )
 
         cluster_summary.append({
+
             "Cluster_ID": cluster_id,
             "Cluster_Name": cluster_name,
             "Business_Description": business_description,
             "Items": len(cluster_df)
+
         })
 
     summary_df = pd.DataFrame(cluster_summary)
 
-    input_dir = os.path.dirname(file_path)
-    output = os.path.join(input_dir, "clustered_output.xlsx")
+    # ==========================
+    # Save Excel
+    # ==========================
+
+    output = "clustered_output.xlsx"
 
     with pd.ExcelWriter(
         output,
