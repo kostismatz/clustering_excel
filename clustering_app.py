@@ -36,8 +36,10 @@ def run(file_path):
 
     X = normalize(X)
 
-   model_cluster = MiniBatchKMeans(
-    n_clusters=10,
+   X = normalize(X)
+
+model_cluster = MiniBatchKMeans(
+    n_clusters=20,
     batch_size=512,
     random_state=42
 )
