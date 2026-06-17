@@ -5,7 +5,7 @@ import pandas as pd
 
 from sentence_transformers import SentenceTransformer
 from sklearn.preprocessing import StandardScaler, normalize
-from sklearn.cluster import AgglomerativeClustering
+from sklearn.cluster import KMeans
 
 MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 model = SentenceTransformer(MODEL_NAME)
@@ -35,13 +35,13 @@ def run(file_path):
 
     X = normalize(X)
 
-    model_cluster = AgglomerativeClustering(
-        n_clusters=5,
-        metric="cosine",
-        linkage="average"
-    )
+   model_cluster = KMeans(
+    n_clusters=10,
+    random_state=42,
+    n_init=10
+)
 
-    labels = model_cluster.fit_predict(X)
+labels = model_cluster.fit_predict(X)
 
     df["Cluster_ID"] = labels
 
